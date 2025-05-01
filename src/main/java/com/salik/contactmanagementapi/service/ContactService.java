@@ -6,9 +6,13 @@ import com.salik.contactmanagementapi.model.Contact;
 import com.salik.contactmanagementapi.repository.ContactRepository;
 import lombok.RequiredArgsConstructor;
 import org.bson.types.ObjectId;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DefaultDataBuffer;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -17,12 +21,20 @@ import reactor.core.publisher.Mono;
 public class ContactService {
 
     private final ContactRepository contactRepository;
+    private final CsvService csvService;
 
     public Mono<ContactDTO> createContact(ObjectId userId, ContactDTO contactDTO) {
-        Contact contact = contactDTO.toEntity();
-        contact.setUserId(userId);
+        return checkDuplicateEmail(userId, contactDTO.getEmail(), null)
+                .flatMap(isDuplicate -> {
+                    if (Boolean.TRUE.equals(isDuplicate)) {
+                        return Mono.error(new ResponseStatusException(
+                                HttpStatus.CONFLICT, "Email already exists"));
+                    }
 
-        return contactRepository.save(contact)
+                    Contact contact = contactDTO.toEntity();
+                    contact.setUserId(userId);
+                    return contactRepository.save(contact);
+                })
                 .map(ContactDTO::fromEntity);
     }
 
@@ -30,27 +42,36 @@ public class ContactService {
         return contactRepository.findById(contactId)
                 .filter(contact -> contact.getUserId().equals(userId))
                 .map(ContactDTO::fromEntity)
-                .switchIfEmpty(Mono.error(new RuntimeException("Contact not found or not authorized")));
+                .switchIfEmpty(Mono.error(new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Contact not found or not authorized")));
     }
 
     public Mono<ContactDTO> updateContact(ObjectId userId, ObjectId contactId, ContactDTO contactDTO) {
         return contactRepository.findById(contactId)
                 .filter(contact -> contact.getUserId().equals(userId))
-                .switchIfEmpty(Mono.error(new RuntimeException("Contact not found or not authorized")))
-                .flatMap(contact -> {
-                    Contact updatedContact = contactDTO.toEntity();
-                    updatedContact.setId(contact.getId());
-                    updatedContact.setUserId(userId);
-                    updatedContact.setCreatedAt(contact.getCreatedAt());
-                    return contactRepository.save(updatedContact);
-                })
+                .switchIfEmpty(Mono.error(new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Contact not found or not authorized")))
+                .flatMap(contact -> checkDuplicateEmail(userId, contactDTO.getEmail(), contactId)
+                        .flatMap(isDuplicate -> {
+                            if (Boolean.TRUE.equals(isDuplicate)) {
+                                return Mono.error(new ResponseStatusException(
+                                        HttpStatus.CONFLICT, "Email already exists"));
+                            }
+
+                            Contact updatedContact = contactDTO.toEntity();
+                            updatedContact.setId(contact.getId());
+                            updatedContact.setUserId(userId);
+                            updatedContact.setCreatedAt(contact.getCreatedAt());
+                            return contactRepository.save(updatedContact);
+                        }))
                 .map(ContactDTO::fromEntity);
     }
 
     public Mono<Void> deleteContact(ObjectId userId, ObjectId contactId) {
         return contactRepository.findById(contactId)
                 .filter(contact -> contact.getUserId().equals(userId))
-                .switchIfEmpty(Mono.error(new RuntimeException("Contact not found or not authorized")))
+                .switchIfEmpty(Mono.error(new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Contact not found or not authorized")))
                 .flatMap(contact -> contactRepository.delete(contact));
     }
 
@@ -104,5 +125,51 @@ public class ContactService {
         return contactRepository.findByUserIdAndEmail(userId, email)
                 .map(contact -> true)
                 .defaultIfEmpty(false);
+    }
+
+    private Mono<Boolean> checkDuplicateEmail(ObjectId userId, String email, ObjectId excludeContactId) {
+        if (email == null || email.isEmpty()) {
+            return Mono.just(false);
+        }
+
+        return contactRepository.findByUserIdAndEmail(userId, email)
+                .map(contact -> {
+                    if (excludeContactId != null) {
+                        return !contact.getId().equals(excludeContactId);
+                    }
+                    return true;
+                })
+                .defaultIfEmpty(false);
+    }
+
+
+    public Flux<ContactDTO> importContactsFromCsv(ObjectId userId, Flux<DataBuffer> fileContent) {
+        return csvService.parseCsvContacts(fileContent)
+                .flatMap(contactDTO -> {
+                    Contact contact = contactDTO.toEntity();
+                    contact.setUserId(userId);
+                    return contactRepository.save(contact)
+                            .map(ContactDTO::fromEntity)
+                            .onErrorResume(e -> Mono.empty());
+                });
+    }
+
+    public Mono<DefaultDataBuffer> exportContactsToCsv(ObjectId userId) {
+        return contactRepository.findByUserId(userId)
+                .map(ContactDTO::fromEntity)
+                .collectList()
+                .doOnNext(contacts -> {
+                    if (contacts.isEmpty()) {
+                        System.out.println("No contacts found for user " + userId);
+                    } else {
+                        System.out.println("Found " + contacts.size() + " contacts for export");
+                    }
+                })
+                .flatMap(csvService::generateCsvFromContacts)
+                .switchIfEmpty(Mono.defer(() -> {
+                    // If we get here, it means no contacts were found, but we still want to return a CSV with headers
+                    System.out.println("No contacts found, returning empty CSV with headers");
+                    return csvService.generateCsvFromContacts(java.util.Collections.emptyList());
+                }));
     }
 }

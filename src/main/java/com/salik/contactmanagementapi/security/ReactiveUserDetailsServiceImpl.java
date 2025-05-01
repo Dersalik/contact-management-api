@@ -30,7 +30,7 @@ public class ReactiveUserDetailsServiceImpl implements ReactiveUserDetailsServic
                 user.getUsername(),
                 user.getPassword(),
                 user.getRoles().stream()
-                        .map(role -> new SimpleGrantedAuthority(role.name()))
+                        .map(role -> new SimpleGrantedAuthority(role))
                         .collect(Collectors.toList())
         );
     }

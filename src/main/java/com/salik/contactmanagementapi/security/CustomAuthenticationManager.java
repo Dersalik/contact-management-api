@@ -39,7 +39,7 @@ public class CustomAuthenticationManager implements ReactiveAuthenticationManage
 
     private Authentication createAuthenticationToken(User user) {
         var authorities = user.getRoles().stream()
-                .map(role -> new SimpleGrantedAuthority(role.name()))
+                .map(role -> new SimpleGrantedAuthority(role))
                 .collect(Collectors.toList());
 
         return new UserAuthentication(

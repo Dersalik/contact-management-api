@@ -46,6 +46,8 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.POST, "/api/contacts/**").authenticated()
                         .pathMatchers(HttpMethod.PUT, "/api/contacts/**").authenticated()
                         .pathMatchers(HttpMethod.DELETE, "/api/contacts/**").authenticated()
+                        .pathMatchers("/api/users/**").authenticated()
+                        .pathMatchers("/api/contacts/import-export/**").authenticated()
                         .anyExchange().authenticated())
                 .addFilterAt(authenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                 .build();

@@ -35,7 +35,7 @@ public class AuthenticationFilter implements WebFilter {
                         .filter(user -> jwtUtil.validateToken(jwt, createUserDetails(user)))
                         .map(user -> {
                             var authorities = user.getRoles().stream()
-                                    .map(role -> new SimpleGrantedAuthority(role.name()))
+                                    .map(role -> new SimpleGrantedAuthority(role))
                                     .collect(Collectors.toList());
 
                             return new UserAuthentication(user.getId().toHexString(), user.getUsername(), authorities);
@@ -63,7 +63,7 @@ public class AuthenticationFilter implements WebFilter {
                 .username(user.getUsername())
                 .password(user.getPassword())
                 .authorities(user.getRoles().stream()
-                        .map(role -> new SimpleGrantedAuthority(role.name()))
+                        .map(role -> new SimpleGrantedAuthority(role))
                         .collect(Collectors.toList()))
                 .build();
     }

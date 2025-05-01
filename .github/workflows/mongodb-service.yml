@@ -1,0 +1,28 @@
+name: MongoDB Service for Tests
+
+on:
+  workflow_call:
+  # This workflow is called by other workflows
+
+jobs:
+  setup-mongodb:
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:latest
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_DATABASE: contactdb
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'" 
+          --health-interval 10s 
+          --health-timeout 5s 
+          --health-retries 5
+
+    steps:
+      - name: Verify MongoDB connection
+        run: |
+          apt-get update && apt-get install -y mongodb-clients
+          mongosh --host localhost --eval "db.runCommand({ ping: 1 })"

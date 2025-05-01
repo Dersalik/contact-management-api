@@ -26,7 +26,6 @@ services:
     networks:
       - contact-network
 
-  # Uncomment to run the api in docker
   api:
     build: .
     container_name: contact-api
@@ -38,7 +37,7 @@ services:
     depends_on:
       - mongodb
     networks:
-      - contact-networ
+      - contact-network
 
 networks:
   contact-network:

@@ -1,5 +1,6 @@
 package com.salik.contactmanagementapi.service;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.stream.Collectors;
 
@@ -53,11 +54,11 @@ public class AuthService {
                             .username(registerRequest.getUsername())
                             .email(registerRequest.getEmail())
                             .password(passwordEncoder.encode(registerRequest.getPassword()))
-                            .roles(new HashSet<>())
+                            .roles(new ArrayList<>())
                             .build();
 
                     // Add default role
-                    newUser.getRoles().add(User.Role.ROLE_USER);
+                    newUser.getRoles().add(User.Role.ROLE_USER.name());
 
                     return userRepository.save(newUser)
                             .onErrorStop();
@@ -82,7 +83,7 @@ public class AuthService {
                                     .withUsername(username)
                                     .password(user.getPassword())
                                     .authorities(user.getRoles().stream()
-                                            .map(role -> new SimpleGrantedAuthority(role.name()))
+                                            .map(role -> new SimpleGrantedAuthority(role))
                                             .collect(Collectors.toList()))
                                     .build(),
                             user.getId()
@@ -94,7 +95,6 @@ public class AuthService {
                             .username(user.getUsername())
                             .email(user.getEmail())
                             .roles(user.getRoles().stream()
-                                    .map(Enum::name)
                                     .collect(Collectors.toSet()))
                             .build();
                 });

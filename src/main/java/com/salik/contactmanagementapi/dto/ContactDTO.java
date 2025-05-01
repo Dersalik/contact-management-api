@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import org.bson.types.ObjectId;
 
 import java.util.HashSet;
@@ -35,6 +34,16 @@ public class ContactDTO {
 
     private AddressDTO address;
 
+    private String company;
+
+    private String jobTitle;
+
+    private String notes;
+
+    private String profileImageUrl;
+
+    private boolean favorite;
+
     @Builder.Default
     private Set<String> tags = new HashSet<>();
 
@@ -50,10 +59,9 @@ public class ContactDTO {
         private String country;
     }
 
-    // Convert DTO to Entity
     public Contact toEntity() {
         Contact contact = new Contact();
-        if (this.id != null) {
+        if (this.id != null && !this.id.isEmpty()) {
             contact.setId(new ObjectId(this.id));
         }
         contact.setFirstName(this.firstName);
@@ -61,6 +69,11 @@ public class ContactDTO {
         contact.setEmail(this.email);
         contact.setPhoneNumber(this.phoneNumber);
         contact.setTags(this.tags);
+        contact.setCompany(this.company);
+        contact.setJobTitle(this.jobTitle);
+        contact.setNotes(this.notes);
+        contact.setProfileImageUrl(this.profileImageUrl);
+        contact.setFavorite(this.favorite);
 
         if (this.address != null) {
             Contact.Address contactAddress = new Contact.Address();
@@ -75,7 +88,6 @@ public class ContactDTO {
         return contact;
     }
 
-    // Convert Entity to DTO
     public static ContactDTO fromEntity(Contact contact) {
         ContactDTO dto = new ContactDTO();
         dto.setId(contact.getId().toHexString());
@@ -84,6 +96,11 @@ public class ContactDTO {
         dto.setEmail(contact.getEmail());
         dto.setPhoneNumber(contact.getPhoneNumber());
         dto.setTags(contact.getTags());
+        dto.setCompany(contact.getCompany());
+        dto.setJobTitle(contact.getJobTitle());
+        dto.setNotes(contact.getNotes());
+        dto.setProfileImageUrl(contact.getProfileImageUrl());
+        dto.setFavorite(contact.isFavorite());
 
         if (contact.getAddress() != null) {
             AddressDTO addressDTO = new AddressDTO();
