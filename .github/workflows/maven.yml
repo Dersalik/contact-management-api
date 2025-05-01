@@ -35,7 +35,7 @@ jobs:
         run: ./mvnw package -DskipTests
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: contact-management-api-jar
           path: target/*.jar
