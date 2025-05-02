@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -38,16 +39,13 @@ public class ContactController extends BaseController{
     @Operation(summary = "Create a new contact")
     public Mono<ResponseEntity<ContactDTO>> createContact(
             Authentication authentication,
-            @Valid @RequestBody ContactDTO contactDTO) {
-
-        return contactService.createContact(new ObjectId(extractUserId(authentication)), contactDTO)
+            @RequestBody Mono<ContactDTO> contactMono) {
+        return contactMono
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is missing")))
+                .flatMap(contact -> contactService.createContact(new ObjectId(extractUserId(authentication)), contact))
                 .map(createdContact -> ResponseEntity.status(HttpStatus.CREATED).body(createdContact))
-                .onErrorResume(e -> {
-                    if (e.getMessage().contains("Email already exists")) {
-                        return Mono.just(ResponseEntity.status(HttpStatus.CONFLICT)
-                                .body(contactDTO));
-                    }
-                    return Mono.error(e);
+                .onErrorResume(ex -> {
+                    return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null));
                 });
     }
 
